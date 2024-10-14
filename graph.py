@@ -1,12 +1,39 @@
 from pyvis.network import Network
 import streamlit as st
 import streamlit.components.v1 as components
+import os
+import time
 import json
 
-# Загружаем данные из JSON файла
-with open('example.json', encoding="UTF-8") as json_file:
-    data = json.load(json_file)
 
+
+
+
+# Имена загруженных файлов
+uploaded_file_names = []
+
+def disappearing_message(mess, sec=2):
+    with st.spinner(mess):
+        time.sleep(sec)
+
+uploaded_files = st.file_uploader(label="Upload .md files, limited to 200MB",
+                                  type=['md'],
+                                  accept_multiple_files=True,
+                                  help="Choose and upload .md files")
+
+# Сохраняем файлы
+if uploaded_files is not None:
+    for file in uploaded_files:
+        if file.name not in uploaded_file_names:
+            uploaded_file_names.append(file.name)
+            with open(os.path.join("cache", file.name),"wb") as f: 
+                f.write(file.getbuffer())         
+
+
+# Загружаем данные из JSON файла
+with open('output.json', encoding="UTF-8") as json_file:
+    data = json.load(json_file)
+print('ok')
 # Создаем сеть графа
 net = Network(notebook=True, 
               directed=True,
@@ -15,6 +42,9 @@ net = Network(notebook=True,
 
 # Добавляем узлы в граф
 colors = ['#93e1d8', '#83c5be', '#edf6f9'] 
+# TODO: Можно добавить вмджет для выбор цветов
+
+# TODO: Добавить выбор большей функциональности и вынести их в виджеты
 for elem in data:
     net.add_node(elem["data"],
                  level=elem["level"], 
@@ -31,51 +61,39 @@ for elem in data:
         if prev_node["num"] == elem["prev_num"] and elem["level"] - 1 == prev_node["level"]:
             net.add_edge(prev_node["data"], elem["data"])
 
-def hide_1_level_node(node_name, hide):
-    net.get_node(node_name)["hidden"] = hide
-    children = net.get_adj_list()[node_name]
-    for node_ch in children:
-        net.get_node(node_ch)["hidden"] = hide
-
 def click_button(name):
     st.session_state[name] = not st.session_state[name]
 
-# Настройка кнопок для управления узлами
-names = net.get_nodes()
-for name in names[1:6]:  # Пример: берем только первые 5 узлов
-    if name not in st.session_state:
-        st.session_state[name] = False
+# if 'Physics on/off' not in st.session_state:
+#     st.session_state['Physics on/off'] = True
 
-    # Создаем кнопку для каждого узла
-    st.button(name, on_click=click_button, args=[name])
-    hide_1_level_node(name, st.session_state[name])
-
-# net.repulsion(node_distance=0, central_gravity=1, spring_length= 0, spring_strength=0)
-# net.show_buttons(filter_=['physics']) 
-# net.toggle_drag_nodes(False)
-# net.set_edge_smooth('horizontal')
-
-if 'Physics on/off' not in st.session_state:
-    st.session_state['Physics on/off'] = True
-
-st.button('Physics on/off', on_click=click_button, args=['Physics on/off'])
-print(st.session_state['Physics on/off'])
-net.toggle_physics(st.session_state['Physics on/off'])
+# st.button('Physics on/off', on_click=click_button, args=['Physics on/off'])
+# print(st.session_state['Physics on/off'])
+# net.toggle_physics(st.session_state['Physics on/off'])
 
 
-# net.set_options('''
-#     {
-#         "nodes": {
-#             "font": {
-#                 "face": "Arial",
-#                 "size": 18
-#             }
-#         }
-#     }
-# ''')
+# Using "with" notation
+with st.sidebar:
+    st.title('Settings')
+    net.toggle_physics(st.toggle("Physics on/off"))
+    for i, color in enumerate(colors):       
+        color = st.color_picker("Pick A Color", color)
+        colors[i] = color
+        st.write("The current color is", color)
+
 
 # Заголовок для приложения
-st.title("Graph Visualization")
+st.title("Mind map")
 
 # Генерация HTML для отображения графа
-components.html(net.generate_html(), height=800, width=800)
+components.html(net.generate_html(notebook=True), height=600, width=800)
+
+
+
+
+
+if 'balloons' not in st.session_state:
+    st.session_state['balloons'] = False
+
+if st.button('BaLlOoNs', on_click=click_button, args=['balloons']):
+    st.balloons()
