@@ -1,8 +1,6 @@
 import os
 from bs4 import BeautifulSoup
-import json
 import markdown
-import multiprocessing as mp
 
 class File_parser():
     __slots__ = ('md_files', 'parsed_res', 'markdown_parse')
@@ -25,12 +23,3 @@ class File_parser():
             for ind, paragraph in enumerate(text_list):
                 self.parsed_res[file_ind][ind+1] = paragraph.text
             self.markdown_parse.reset()
-        
-if __name__ == '__main__':
-    import time
-    a1 = time.time()
-    a = File_parser()
-    a.parse_func()
-    with open("data.json", "w") as json_file:
-        json.dump(a.parsed_res, json_file)
-    print(time.time() - a1)
