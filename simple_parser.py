@@ -5,31 +5,32 @@ import markdown
 import multiprocessing as mp
 
 class File_parser():
-    __slots__ = ('md_files', 'parsed_res')
+    __slots__ = ('md_files', 'parsed_res', 'markdown_parse')
     def __init__(self, path='./files', ext='.md'):
         self.md_files = [path + '/' + f for f in os.listdir(path) if f.endswith(ext)]
         if not self.md_files:
             print('Тут надо сделать обработку запуска, если нет мд файлов')
             exit(0)
-        self.parsed_res = 0
+        self.parsed_res = [0] * len(self.md_files)
+        self.markdown_parse = markdown.Markdown()
 
-    def file_parse(self):
-        with mp.Pool(len(self.md_files)) as p:
-            self.parsed_res = p.map(self.parse_func, self.md_files)
-    @staticmethod
-    def parse_func(file_name):
-        with open(file_name, 'r'  ,encoding='utf-8') as f:
-            parse = BeautifulSoup(markdown.markdown(f.read()), features='lxml')
+    def parse_func(self):
+        for file_ind, file_name in enumerate(self.md_files):
+            with open(file_name, 'r'  ,encoding='utf-8') as f:
+                parse = BeautifulSoup(self.markdown_parse.convert(f.read()), features='lxml')
 
-        text_list = parse.find_all('p')
-        parsed_res = {}
-        for ind, paragraph in enumerate(text_list):
-            parsed_res[ind+1] = paragraph.text
-        
-        return parsed_res
+            text_list = parse.find_all('p')
+
+            self.parsed_res[file_ind] = {}
+            for ind, paragraph in enumerate(text_list):
+                self.parsed_res[file_ind][ind+1] = paragraph.text
+            self.markdown_parse.reset()
         
 if __name__ == '__main__':
+    import time
+    a1 = time.time()
     a = File_parser()
-    a.file_parse()
+    a.parse_func()
     with open("data.json", "w") as json_file:
         json.dump(a.parsed_res, json_file)
+    print(time.time() - a1)
