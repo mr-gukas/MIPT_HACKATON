@@ -8,8 +8,8 @@ import time
 
 class File_parser():
     __slots__ = ('md_files', 'parsed_res')
-    def __init__(self, path='.', ext='.md'):
-        self.md_files = [f for f in os.listdir(path) if f.endswith(ext)]
+    def __init__(self, path='./files', ext='.md'):
+        self.md_files = [path + '/' + f for f in os.listdir(path) if f.endswith(ext)]
         if not self.md_files:
             print('Тут надо сделать обработку запуска, если нет мд файлов')
             exit(0)
@@ -26,7 +26,6 @@ class File_parser():
             parse = BeautifulSoup(mistune.html(f.read()), features='lxml')
 
         text_list = parse.find_all()[2:]
-        # print(text_list)
         parsed_res = {}
         parsed_res['file_id'] = file_num
         parsed_res['title'] = file_name[:-3]
@@ -34,9 +33,10 @@ class File_parser():
 
         cur_level = 1
         pars_level = parsed_res['sections']
+        pars_list = []
         section_counter = Counter()
         last_with_sel_level = [0] * 6
-
+        
         last_with_sel_level[cur_level-1] = parsed_res['sections']
 
 
@@ -46,8 +46,15 @@ class File_parser():
                     pars_level.append({'type':'paragraph', 'text':elem.get_text()})
                 case 'ul':
                     pars_level.append({'type':'list', 'content':[]})
+                    pars_list = pars_level[-1]['content']
+                case 'ol':
+                    pars_level.append({'type':'ord_list', 'content':[]})
+                    pars_list = pars_level[-1]['content']
+                case 'dl':
+                    pars_level.append({'type':'def_list', 'content':[]})
+                    pars_list = pars_level[-1]['content']
                 case 'li':
-                    pars_level[-1]['content'].append(elem.get_text())
+                    pars_list.append(elem.get_text())
                 case 'em':
                     File_parser.append_spec_text(pars_level, 'italicized_text', elem.get_text())
                 case 'strong':
@@ -94,6 +101,7 @@ class File_parser():
         if key not in pars_level[-1].keys():
             pars_level[-1][key] = []
         pars_level[-1][key].append(text)
+        
 if __name__ == '__main__':
     a1 = time.time()
     a = File_parser()
