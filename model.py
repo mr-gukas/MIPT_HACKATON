@@ -8,11 +8,14 @@ from gensim.models import LdaModel
 from sklearn.cluster import KMeans
 import copy
 import json
-
+import numpy as np
+import simple_parser as parse
+import pprint
 
 # Загрузка необходимых ресурсов
-nltk.download('punkt')
-nltk.download('stopwords')
+# nltk.download('punkt')
+# nltk.download('punkt_tab')
+# nltk.download('stopwords')
 
 # Инициализация морфологического анализатора
 morph = pymorphy2.MorphAnalyzer()
@@ -160,10 +163,11 @@ text_with_id = {
       между различными сообществами. Поддержка культурных инициатив и искусства способствует развитию креативности и социальной сплоченности."
 }
 
-answer = []
+
 
 
 def convert_to_standard_types(data):
+    print(f"{data = }")
     """Преобразует данные в стандартные типы Python для сериализации в JSON."""
     if isinstance(data, dict):
         return {key: convert_to_standard_types(value) for key, value in data.items()}
@@ -177,20 +181,21 @@ def convert_to_standard_types(data):
         return data  # Возвращаем без изменений, если тип стандартный
 
 
-def process_text(text_with_id, num_iterations, current_iteration, n_keywords=5, num_clusters=3, prev_num=None):
+def process_text(text_with_id, num_iterations, current_iteration, answer, n_keywords=5, num_clusters=3, prev_num=None):
     paragraphs_keywords = []
     for text_id, content in text_with_id.items():
         if len(content):
             keywords = extract_keywords(content, n_keywords)
             paragraphs_keywords.append({text_id: keywords})
 
-    if num_clusters > len(paragraphs_keywords):
+    if num_iterations <= current_iteration or (num_clusters > len(paragraphs_keywords) and prev_num != None):
         return
+
     if prev_num != None:
         clustered_paragraphs = make_paragraphs_clustering(paragraphs_keywords, num_clusters)
-    else: 
+    else:
         clustered_paragraphs = make_paragraphs_clustering(paragraphs_keywords, 1)
-
+    
     clustered_keywords = get_clustered_keywords(text_with_id, clustered_paragraphs)
     for cluster, keywords in clustered_keywords.items():
         small_answer = dict()
@@ -200,28 +205,32 @@ def process_text(text_with_id, num_iterations, current_iteration, n_keywords=5, 
         small_answer["prev_num"] = prev_num
         answer.append(small_answer)
 
-    if num_iterations <= current_iteration:
-        return
-
     remove_clustering_words(text_with_id, clustered_paragraphs, clustered_keywords)
     for cluster, paragraph_ids in clustered_paragraphs.items():
         cluster_text_with_id = dict()
         for paragraph_id in paragraph_ids:
             cluster_text_with_id[paragraph_id] = text_with_id[paragraph_id]
-        process_text(cluster_text_with_id, num_iterations, current_iteration + 1, n_keywords, num_clusters=num_clusters, prev_num=cluster)
+        process_text(cluster_text_with_id, num_iterations, current_iteration + 1, answer, n_keywords, num_clusters=num_clusters, prev_num=cluster)
 
 
 
-def generate_json_output():
+def generate_json_output(names):
+    answer = []
     # уровень вложенности
     num_iter = 3
     n_keywords = 5
     num_clusters = 3
+    print(names)
+    if names:
+        a = parse.File_parser(path='./cache/')
+        a.new_files_parse(names)
+        text_with_id = a.parsed_res[0]
 
-    process_text(copy.deepcopy(text_with_id), num_iter, 0, n_keywords, num_clusters)
+    process_text(copy.deepcopy(text_with_id), num_iter, 0, answer, n_keywords, num_clusters)
 
     # Генерация JSON-файла
     converted_answer = convert_to_standard_types(answer)  # Преобразуем answer перед записью
+
     with open('output.json', 'w', encoding='utf-8') as json_file:
         json.dump(converted_answer, json_file, ensure_ascii=False, indent=4)
 
